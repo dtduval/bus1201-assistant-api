@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  // Add CORS headers
+  // Add CORS headers first thing
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Fetch the Google Doc content
+    // Fetch the Google Doc content
     console.log('Fetching course content...');
     const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSQKFtFwES-1IK62rTPjN9UpZADz0hJ8u_7UjRtvsdLPKyEDNazKEDPSWTp9FGyWFw3ZhAx0q6mRrOX/pub');
     
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     
     const courseContent = await docResponse.text();
     
-    // 2. Create system prompt with live course content
+    // Create system prompt with live course content
     const systemPrompt = `You are an intelligent and professional course assistant for BUS 1201 (Introduction to Business) at the University of Winnipeg, taught by Professor David Duval. You have access to the complete course outline and your role is to help students with any questions about the course.
 
 COURSE OUTLINE CONTENT:
@@ -45,14 +45,14 @@ INSTRUCTIONS:
 
 You want to help students succeed in BUS 1201 and feel confident about the course.`;
 
-    // 3. Prepare messages for Claude
+    // Prepare messages for Claude
     const { messages } = req.body;
     const claudeMessages = [
       { role: "user", content: systemPrompt },
       ...messages
     ];
 
-    // 4. Call Claude API
+    // Call Claude API
     const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
