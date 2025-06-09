@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  // Enable CORS
+  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -16,7 +16,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('Received request:', req.body);
+    
     const { messages } = req.body;
+    
+    if (!messages) {
+      res.status(400).json({ error: 'Messages array is required' });
+      return;
+    }
+    
+    console.log('Calling Claude API...');
     
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -33,14 +42,18 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      throw new Error(`Claude API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Claude API error:', response.status, errorText);
+      res.status(500).json({ error: `Claude API error: ${response.status}` });
+      return;
     }
 
     const data = await response.json();
+    console.log('Claude API success');
     res.status(200).json(data);
     
   } catch (error) {
     console.error('API Error:', error);
-    res.status(500).json({ error: 'Failed to generate response' });
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 }
