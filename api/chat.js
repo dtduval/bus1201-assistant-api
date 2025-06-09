@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   try {
     const { messages } = req.body;
 
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -20,18 +20,11 @@ export default async function handler(req, res) {
       })
     });
 
-    if (!claudeResponse.ok) {
-      throw new Error('Claude API request failed');
-    }
-
-    const data = await claudeResponse.json();
+    const data = await response.json();
     res.status(200).json(data);
 
   } catch (error) {
-    console.error('API Error:', error);
-    res.status(500).json({ 
-      error: 'Failed to process request',
-      details: error.message 
-    });
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
