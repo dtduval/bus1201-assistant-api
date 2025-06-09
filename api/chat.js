@@ -47,6 +47,11 @@ export default async function handler(req, res) {
     }
     
     const courseContent = await docResponse.text();
+
+    console.log('COURSE CONTENT SEARCH:', courseContent.includes('4BC57') ? 'FOUND 4BC57' : 'NOT FOUND - still old content');
+    console.log('Also checking lowercase:', courseContent.includes('4bc57') ? 'FOUND 4bc57' : 'NOT FOUND');
+    console.log('First 1000 chars:', courseContent.substring(0, 1000));
+    
     console.log(`Course content length: ${courseContent.length} characters`);
     
     // Create system prompt
