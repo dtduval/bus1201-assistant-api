@@ -1,61 +1,21 @@
+// In your Vercel API function
 export default async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-  
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
   try {
-    const { messages } = req.body;
+    // Fetch the Google Doc content
+    const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSQKFtFwES-1IK62rTPjN9UpZADz0hJ8u_7UjRtvsdLPKyEDNazKEDPSWTp9FGyWFw3ZhAx0q6mRrOX/pub');
+    const courseContent = await docResponse.text();
     
-    if (!messages) {
-      res.status(400).json({ error: 'Messages array is required' });
-      return;
-    }
-
-    if (!process.env.ANTHROPIC_API_KEY) {
-      res.status(500).json({ error: 'API key not configured' });
-      return;
-    }
+    // Add the course content to your system prompt
+    const systemPrompt = `You are a course assistant for BUS 1201...
     
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',  // ← Updated model name
-        max_tokens: 1500,
-        messages: messages
-      })
-    });
+COURSE OUTLINE CONTENT:
+${courseContent}
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      res.status(500).json({ 
-        error: `Claude API error: ${response.status}`,
-        details: errorText 
-      });
-      return;
-    }
-
-    const data = await response.json();
-    res.status(200).json(data);
+INSTRUCTIONS:...`;
     
+    // Send to Claude with the live content
+    // ... rest of your Claude API call
   } catch (error) {
-    console.error('API Error:', error);
-    res.status(500).json({ error: 'Internal server error: ' + error.message });
+    // Handle errors
   }
 }
