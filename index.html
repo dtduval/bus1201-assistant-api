@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BUS 1201 Course Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #003049;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: #f77f00;
+            color: #003049;
+            padding: 20px 25px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 26px;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .loading-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            background: #f8fafc;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f1f5f9;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #64748b;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .loading-subtext {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .messages {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            background: linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%);
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 16px 20px;
+            border-radius: 20px;
+            word-wrap: break-word;
+            line-height: 1.6;
+            font-size: 15px;
+            position: relative;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 8px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .message.assistant .message-bubble {
+            background: white;
+            border: 1px solid #e2e8f0;
+            color: #374151;
+            border-bottom-left-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .input-area {
+            padding: 20px 25px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .input-area input {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+        }
+
+        .input-area input:focus {
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 80px;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #64748b;
+            font-style: italic;
+            padding: 16px 20px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            border-bottom-left-radius: 8px;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            animation: typing-bounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing-bounce {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+        }
+
+        .error-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            background: #fef2f2;
+            color: #dc2626;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .retry-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+
+        .retry-btn:hover {
+            background: #b91c1c;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                max-width: none;
+            }
+
+            .header {
+                padding: 15px 20px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .messages {
+                padding: 15px;
+            }
+
+            .message-bubble {
+                max-width: 85%;
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+
+            .input-area {
+                padding: 15px;
+            }
+        }
+
+        /* Text formatting */
+        .message-bubble strong {
+            font-weight: 600;
+            color: inherit;
+        }
+
+        .message-bubble em {
+            font-style: italic;
+        }
+
+        .message-bubble a {
+            color: #667eea;
+            text-decoration: underline;
+        }
+
+        .message.user .message-bubble a {
+            color: #bfdbfe;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to the BUS 1201 Course Assistant (Autumn 2025)</h1>
+        </div>
+
+        <!-- Loading Screen -->
+        <div class="loading-screen" id="loadingScreen">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Connecting to Claude AI...</div>
+            <div class="loading-subtext">Initializing your intelligent course assistant</div>
+        </div>
+
+        <!-- Error Screen -->
+        <div class="error-panel hidden" id="errorPanel">
+            <div class="error-icon">⚠️</div>
+            <h3>Connection Error</h3>
+            <p id="errorMessage">Unable to connect to the AI service. Please try again.</p>
+            <button class="retry-btn" onclick="initializeApp()">Retry Connection</button>
+        </div>
+
+        <!-- Chat Interface -->
+        <div class="chat-container hidden" id="chatContainer">
+            <div class="messages" id="messages">
+                <div class="message assistant">
+                    <div class="message-bubble">
+                        Hi! I'm your BUS 1201 course assistant. Ask me about deadlines, assignments, grading, office hours, or anything else from your course outline.
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        id="userInput" 
+                        placeholder="Ask me anything about BUS 1201..." 
+                        onkeypress="handleKeyPress(event)"
+                        autocomplete="off"
+                    >
+                </div>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Relative URL since we're on the same domain now
+        const API_ENDPOINT = '/api/chat';
+        
+        // Course content
+        const courseContent = `BUS 1201 - Autumn 2025 - Course Outline
+
+Professor: David Timothy Duval
+Email: da.duval@uwinnipeg.ca
+Office Hours: Phone consultations via Nexus booking link
+
+EVALUATION:
+- Midterm Exam: 30% (October 11, 2025, 9:00-10:30 AM)
+- Final Exam: 70% (April 9-23, 2025, cumulative)
+
+KEY POLICIES:
+- NO assignments, homework, or projects
+- NO make-up exams offered
+- Must achieve C+ or better to continue in Business program
+- Exam questions come from lectures, not textbook
+
+TEXTBOOK:
+Understanding Canadian Business (12th edition) by Nickels et al
+Online trial: https://accounts.mheducation.com/connect/section/d-duvalbus1201
+
+KEY DATES:
+- October 11, 2025: Midterm exam
+- November 12, 2025: Final withdrawal date
+- April 9-23, 2025: Final exam period
+
+For complete details, refer to your official course outline.`;
+
+        // Application state
+        let conversationHistory = [];
+        let isInitialized = false;
+
+        // Initialize the application
+        async function initializeApp() {
+            try {
+                showLoading();
+                updateLoadingText('Testing connection to Claude AI...');
+                
+                // Test the API connection
+                await testAPIConnection();
+                
+                // Show chat interface
+                showChat();
+                isInitialized = true;
+                
+                // Focus on input
+                document.getElementById('userInput').focus();
+                
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showError(error.message);
+            }
+        }
+
+        async function testAPIConnection() {
+            try {
+                const testMessages = [
+                    {
+                        role: "user",
+                        content: "Hello! Please respond with exactly: 'Connection successful'"
+                    }
+                ];
+
+                const response = await callClaudeAPI(testMessages);
+                
+                if (!response.includes('Connection successful')) {
+                    throw new Error('API connection test failed');
+                }
+                
+                console.log('✅ Claude AI connected successfully');
+                
+            } catch (error) {
+                console.error('Claude API test failed:', error);
+                throw new Error('Failed to connect to Claude AI. Please check your internet connection and try again.');
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            
+            if (!message || !isInitialized) return;
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            conversationHistory.push({ role: "user", content: message });
+            input.value = '';
+            
+            // Disable send button and show typing
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = '...';
+            
+            const typingIndicator = addTypingIndicator();
+
+            try {
+                // Generate Claude AI response
+                const response = await generateClaudeResponse(message);
+                
+                // Remove typing indicator and add response
+                removeTypingIndicator(typingIndicator);
+                addMessage(response, 'assistant');
+                
+                // Add to conversation history
+                conversationHistory.push({ role: "assistant", content: response });
+                
+                // Keep conversation history manageable (last 20 messages)
+                if (conversationHistory.length > 20) {
+                    conversationHistory = conversationHistory.slice(-20);
+                }
+                
+            } catch (error) {
+                removeTypingIndicator(typingIndicator);
+                addMessage('I apologize, but I encountered an error processing your question. Please try again.', 'assistant');
+                console.error('Error generating response:', error);
+            }
+
+            // Re-enable send button
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
+            input.focus();
+        }
+
+        async function generateClaudeResponse(userMessage) {
+            const systemPrompt = `You are an intelligent and professional course assistant for BUS 1201 (Introduction to Business) at the University of Winnipeg, taught by Professor David Duval. You have access to the course outline and your role is to help students with any questions about the course.
+
+COURSE OUTLINE CONTENT:
+${courseContent}
+
+INSTRUCTIONS:
+- Be helpful, encouraging, and supportive like a caring teaching assistant
+- Provide accurate information based on the course outline
+- Remember our conversation context and build on previous exchanges
+- Be conversational and personable, but professional
+- DO NOT use emojis in responses - keep all responses clean and professional
+- Use **bold** for important information like dates and policies
+- Show empathy when students express concerns or stress about exams/grades
+- Offer study tips and remind students that exam questions come from lectures
+- Reference specific course policies when relevant
+- Keep responses clear, professional, and academic in tone
+
+You want to help students succeed in BUS 1201 and feel confident about the course.`;
+
+            // Prepare messages for Claude
+            const messages = [
+                {
+                    role: "user",
+                    content: systemPrompt
+                },
+                ...conversationHistory.slice(-10), // Last 10 messages for context
+                {
+                    role: "user",
+                    content: userMessage
+                }
+            ];
+
+            return await callClaudeAPI(messages);
+        }
+
+        async function callClaudeAPI(messages) {
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: messages
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API Error: ${response.status} - ${errorText}`);
+                }
+
+                const data = await response.json();
+                
+                if (!data.content || !data.content[0] || !data.content[0].text) {
+                    throw new Error('Invalid response format from Claude API');
+                }
+                
+                return data.content[0].text;
+                
+            } catch (error) {
+                console.error('Claude API call failed:', error);
+                throw new Error('Unable to connect to Claude AI: ' + error.message);
+            }
+        }
+
+        function addMessage(text, sender) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            
+            // Format text with markdown support
+            let formattedText = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code style="background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 3px;">$1</code>')
+                .replace(/\n/g, '<br>');
+            
+            // Convert URLs to clickable links
+            formattedText = formattedText.replace(
+                /(https?:\/\/[^\s<]+)/g,
+                '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+            );
+            
+            bubbleDiv.innerHTML = formattedText;
+            messageDiv.appendChild(bubbleDiv);
+            messagesDiv.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addTypingIndicator() {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant';
+            
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.innerHTML = `
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <span>Claude is thinking...</span>
+            `;
+            
+            messageDiv.appendChild(typingDiv);
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        function removeTypingIndicator(indicator) {
+            if (indicator && indicator.parentNode) {
+                indicator.parentNode.removeChild(indicator);
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loadingScreen').classList.remove('hidden');
+            document.getElementById('chatContainer').classList.add('hidden');
+            document.getElementById('errorPanel').classList.add('hidden');
+        }
+
+        function showChat() {
+            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('chatContainer').classList.remove('hidden');
+            document.getElementById('errorPanel').classList.add('hidden');
+        }
+
+        function showError(message) {
+            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('chatContainer').classList.add('hidden');
+            document.getElementById('errorPanel').classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        function updateLoadingText(text) {
+            const loadingText = document.querySelector('.loading-text');
+            if (loadingText) {
+                loadingText.textContent = text;
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Initialize the app when page loads
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
