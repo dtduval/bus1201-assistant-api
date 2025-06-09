@@ -16,10 +16,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Debug logging
-    console.log('API Key exists:', !!process.env.ANTHROPIC_API_KEY);
-    console.log('API Key starts with:', process.env.ANTHROPIC_API_KEY?.substring(0, 10));
-    
     const { messages } = req.body;
     
     if (!messages) {
@@ -40,7 +36,7 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-sonnet-20240229',
+        model: 'claude-3-5-sonnet-20241022',  // ← Updated model name
         max_tokens: 1500,
         messages: messages
       })
@@ -48,7 +44,6 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Claude API error:', response.status, errorText);
       res.status(500).json({ 
         error: `Claude API error: ${response.status}`,
         details: errorText 
