@@ -16,7 +16,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('Received request:', req.body);
+    // Debug logging
+    console.log('API Key exists:', !!process.env.ANTHROPIC_API_KEY);
+    console.log('API Key starts with:', process.env.ANTHROPIC_API_KEY?.substring(0, 10));
     
     const { messages } = req.body;
     
@@ -24,8 +26,11 @@ export default async function handler(req, res) {
       res.status(400).json({ error: 'Messages array is required' });
       return;
     }
-    
-    console.log('Calling Claude API...');
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      res.status(500).json({ error: 'API key not configured' });
+      return;
+    }
     
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -44,12 +49,14 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Claude API error:', response.status, errorText);
-      res.status(500).json({ error: `Claude API error: ${response.status}` });
+      res.status(500).json({ 
+        error: `Claude API error: ${response.status}`,
+        details: errorText 
+      });
       return;
     }
 
     const data = await response.json();
-    console.log('Claude API success');
     res.status(200).json(data);
     
   } catch (error) {
