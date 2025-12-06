@@ -15,31 +15,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('=== API Request Started ===');
-    const startTime = Date.now();
-
     const { messages } = req.body;
-    console.log('Received messages:', messages?.length || 0);
 
-    if (!messages) {
-      res.status(400).json({ error: 'Messages array is required' });
+    if (!process.env.GEMINI_API_KEY) {
+      res.status(500).json({ error: 'Gemini API key not configured' });
       return;
     }
 
-    // CHECK FOR OPENAI KEY INSTEAD OF ANTHROPIC
-    if (!process.env.OPENAI_API_KEY) {
-      res.status(500).json({ error: 'OpenAI API key not configured' });
-      return;
-    }
-
-    // Fetch Google Doc with HTML parsing (Exactly as before)
+    // 1. Fetch Google Doc
     console.log('Fetching Google Doc...');
-    const docFetchStart = Date.now();
-
-    const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSEnCocwxX2uI4fpMU2rW7c2vlTWMEU8jy54d7KcGGxt7LevvwReEpPLd42hzdyTTyiBUHNB1rupdTL/pub');
-
-    const docFetchTime = Date.now() - docFetchStart;
-    console.log(`Google Doc fetch took ${docFetchTime}ms, status: ${docResponse.status}`);
+    const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSQKFtFwES-1IK62rTPjN9UpZADz0hJ8u_7UjRtvsdLPKyEDNazKEDPSWTp9FGyWFw3ZhAx0q6mRrOX/pub');
 
     if (!docResponse.ok) {
       throw new Error(`Google Doc fetch failed: ${docResponse.status}`);
@@ -47,98 +32,76 @@ export default async function handler(req, res) {
 
     const rawHTML = await docResponse.text();
 
-    // Simple HTML tag removal - convert HTML to text
+    // 2. Clean the HTML
+    // We replace table tags with pipes or spaces to help the AI "see" the grid structure better
     const courseContent = rawHTML
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')  // Remove scripts
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')    // Remove styles  
-      .replace(/<[^>]*>/g, ' ')                          // Remove HTML tags
-      .replace(/\s+/g, ' ')                              // Clean whitespace
-      .replace(/&nbsp;/g, ' ')                           // Decode entities
+      .replace(/<\/tr>/g, '\n')           // New line for table rows
+      .replace(/<\/td>/g, ' | ')          // Pipe for table cells
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/&nbsp;/g, ' ')
       .trim();
 
-    console.log(`Course content length: ${courseContent.length} characters`);
-    console.log('COURSE CONTENT SEARCH:', courseContent.includes('4BC57') ? 'FOUND 4BC57' : 'NOT FOUND - still old content');
-    
-    // Create system prompt
-    const systemPrompt = `You are an intelligent and professional course assistant for BUS 1201 (Introduction to Business) at the University of Winnipeg, taught by Professor David Duval. You have access to the complete course outline and your role is to help students with any questions about the course.
+    // 3. Construct System Prompt
+    const systemInstruction = `You are an intelligent and professional course assistant for BUS 1201 (Introduction to Business) at the University of Winnipeg, taught by Professor David Duval. 
 
-COURSE OUTLINE CONTENT:
+COURSE OUTLINE SOURCE DATA:
 ${courseContent}
 
 INSTRUCTIONS:
-- Be helpful, encouraging, and supportive like a caring teaching assistant
-- Provide accurate information based on the course outline
-- Remember our conversation context and build on previous exchanges
-- Be conversational and personable, but professional
-- DO NOT use emojis in responses - keep all responses clean and professional
-- Use **bold** for important information like dates and policies
-- Show empathy when students express concerns or stress about exams/grades
-- Offer study tips and remind students that exam questions come from lectures
-- Reference specific course policies when relevant
-- Keep responses clear, professional, and academic in tone
+- Answer based strictly on the source data above.
+- If asking about dates (exams, first class), look for the "Class Schedule" or "Important Dates" section in the text.
+- Be helpful, encouraging, and professional.
+- Do not use emojis.`;
 
-You want to help students succeed in BUS 1201 and feel confident about the course.`;
+    // 4. Format Messages for Gemini API
+    // Gemini expects: { role: "user" | "model", parts: [{ text: "..." }] }
+    const geminiHistory = messages.map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    }));
 
-    // Prepare messages for OpenAI
-    // We use the proper "system" role for the instructions
-    const openAIMessages = [
-      {
-        role: "system",
-        content: systemPrompt
-      },
-      ...messages
-    ];
-
-    // Call OpenAI API
-    console.log('Calling OpenAI API...');
-    const aiStart = Date.now();
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // 5. Call Gemini 1.5 Flash via REST API
+    console.log('Calling Gemini 1.5 Flash...');
+    
+    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    
+    const response = await fetch(apiURL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: openAIMessages,
-        max_tokens: 1500,
-        temperature: 0.7
+        system_instruction: {
+          parts: [{ text: systemInstruction }]
+        },
+        contents: geminiHistory,
+        generationConfig: {
+          temperature: 0.3, // Lower temperature = more factual/strict
+          maxOutputTokens: 1000,
+        }
       })
     });
 
-    const aiTime = Date.now() - aiStart;
-    console.log(`OpenAI API took ${aiTime}ms, status: ${response.status}`);
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
+      throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    
-    // === CRITICAL STEP ===
-    // We must reformat OpenAI's response to match what your existing website expects.
-    // Your website expects: data.content[0].text (Claude style)
-    // OpenAI gives: data.choices[0].message.content (OpenAI style)
-    
-    const adaptedResponse = {
-      content: [
-        {
-          text: data.choices[0].message.content
-        }
-      ]
-    };
 
-    const totalTime = Date.now() - startTime;
-    console.log(`=== Total request time: ${totalTime}ms ===`);
+    // 6. Adapt Response for your Frontend
+    // Gemini returns data.candidates[0].content.parts[0].text
+    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't find an answer.";
 
-    // Send the adapted response back to your website
-    res.status(200).json(adaptedResponse);
+    res.status(200).json({
+      content: [{ text: aiText }]
+    });
 
   } catch (error) {
-    console.error('=== API Error ===', error.message);
+    console.error('API Error:', error);
     res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 }
