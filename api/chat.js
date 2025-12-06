@@ -1,4 +1,3 @@
-// We use 'module.exports' instead of 'export default' for Vercel compatibility
 module.exports = async (req, res) => {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -63,11 +62,11 @@ INSTRUCTIONS:
       parts: [{ text: msg.content }]
     }));
 
-    // 5. Call Gemini 1.5 Flash via REST API
-    console.log('Calling Gemini 1.5 Flash...');
+    // 5. Call Gemini 2.5 Flash (The 2025 Standard)
+    console.log('Calling Gemini 2.5 Flash...');
     
-const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
+    // UPDATED URL: Using gemini-2.5-flash
+    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
     
     const response = await fetch(apiURL, {
       method: 'POST',
