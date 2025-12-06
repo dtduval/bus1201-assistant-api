@@ -66,7 +66,8 @@ INSTRUCTIONS:
     // 5. Call Gemini 1.5 Flash via REST API
     console.log('Calling Gemini 1.5 Flash...');
     
-    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
     
     const response = await fetch(apiURL, {
       method: 'POST',
