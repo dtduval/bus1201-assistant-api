@@ -1,10 +1,18 @@
 module.exports = async (req, res) => {
+  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
-  if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
 
   try {
     const { messages } = req.body;
@@ -25,13 +33,13 @@ module.exports = async (req, res) => {
 
     const rawHTML = await docResponse.text();
 
-    // 2. Clean the HTML (WITH LINK EXTRACTION)
+    // 2. Clean the HTML (WITH MARKDOWN LINK CONVERSION)
     const courseContent = rawHTML
       .replace(/<\/tr>/g, '\n')
       .replace(/<\/td>/g, ' | ')
-      // === NEW LINE: Preserves links by rewriting them as "Text (URL)" ===
-      .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '$2 ($1)') 
-      // =================================================================
+      // === NEW: Converts <a href="...">Text</a> to [Text](URL) ===
+      .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+      // ==========================================================
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<[^>]*>/g, ' ')
@@ -47,8 +55,8 @@ ${courseContent}
 
 INSTRUCTIONS:
 - Answer based strictly on the source data above.
-- If the source text includes a URL (formatted like "Click here (http...)"), please include that full URL in your answer so the student can click it.
-- If asking about dates (exams, first class), look for the "Class Schedule" or "Important Dates" section.
+- If the source text includes a link (formatted like [Text](URL)), please include it in your answer using that exact format.
+- If asking about dates (exams, first class), look for the "Class Schedule" or "Important Dates" section in the text.
 - Be helpful, encouraging, and professional.
 - Do not use emojis.`;
 
