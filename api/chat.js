@@ -1,4 +1,5 @@
-export default async function handler(req, res) {
+// We use 'module.exports' instead of 'export default' for Vercel compatibility
+module.exports = async (req, res) => {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -18,7 +19,8 @@ export default async function handler(req, res) {
     const { messages } = req.body;
 
     if (!process.env.GEMINI_API_KEY) {
-      res.status(500).json({ error: 'Gemini API key not configured' });
+      console.error('Error: GEMINI_API_KEY is missing');
+      res.status(500).json({ error: 'Server misconfiguration: API key missing' });
       return;
     }
 
@@ -33,10 +35,9 @@ export default async function handler(req, res) {
     const rawHTML = await docResponse.text();
 
     // 2. Clean the HTML
-    // We replace table tags with pipes or spaces to help the AI "see" the grid structure better
     const courseContent = rawHTML
-      .replace(/<\/tr>/g, '\n')           // New line for table rows
-      .replace(/<\/td>/g, ' | ')          // Pipe for table cells
+      .replace(/<\/tr>/g, '\n')
+      .replace(/<\/td>/g, ' | ')
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<[^>]*>/g, ' ')
@@ -57,7 +58,6 @@ INSTRUCTIONS:
 - Do not use emojis.`;
 
     // 4. Format Messages for Gemini API
-    // Gemini expects: { role: "user" | "model", parts: [{ text: "..." }] }
     const geminiHistory = messages.map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
@@ -79,7 +79,7 @@ INSTRUCTIONS:
         },
         contents: geminiHistory,
         generationConfig: {
-          temperature: 0.3, // Lower temperature = more factual/strict
+          temperature: 0.3,
           maxOutputTokens: 1000,
         }
       })
@@ -93,7 +93,6 @@ INSTRUCTIONS:
     const data = await response.json();
 
     // 6. Adapt Response for your Frontend
-    // Gemini returns data.candidates[0].content.parts[0].text
     const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't find an answer.";
 
     res.status(200).json({
@@ -104,4 +103,4 @@ INSTRUCTIONS:
     console.error('API Error:', error);
     res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
-}
+};
