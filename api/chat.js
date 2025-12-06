@@ -1,18 +1,10 @@
 module.exports = async (req, res) => {
-  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
   try {
     const { messages } = req.body;
@@ -25,7 +17,7 @@ module.exports = async (req, res) => {
 
     // 1. Fetch Google Doc
     console.log('Fetching Google Doc...');
-    const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSEnCocwxX2uI4fpMU2rW7c2vlTWMEU8jy54d7KcGGxt7LevvwReEpPLd42hzdyTTyiBUHNB1rupdTL/pub');
+    const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSQKFtFwES-1IK62rTPjN9UpZADz0hJ8u_7UjRtvsdLPKyEDNazKEDPSWTp9FGyWFw3ZhAx0q6mRrOX/pub');
 
     if (!docResponse.ok) {
       throw new Error(`Google Doc fetch failed: ${docResponse.status}`);
@@ -33,10 +25,13 @@ module.exports = async (req, res) => {
 
     const rawHTML = await docResponse.text();
 
-    // 2. Clean the HTML
+    // 2. Clean the HTML (WITH LINK EXTRACTION)
     const courseContent = rawHTML
       .replace(/<\/tr>/g, '\n')
       .replace(/<\/td>/g, ' | ')
+      // === NEW LINE: Preserves links by rewriting them as "Text (URL)" ===
+      .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '$2 ($1)') 
+      // =================================================================
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<[^>]*>/g, ' ')
@@ -52,7 +47,8 @@ ${courseContent}
 
 INSTRUCTIONS:
 - Answer based strictly on the source data above.
-- If asking about dates (exams, first class), look for the "Class Schedule" or "Important Dates" section in the text.
+- If the source text includes a URL (formatted like "Click here (http...)"), please include that full URL in your answer so the student can click it.
+- If asking about dates (exams, first class), look for the "Class Schedule" or "Important Dates" section.
 - Be helpful, encouraging, and professional.
 - Do not use emojis.`;
 
@@ -62,10 +58,9 @@ INSTRUCTIONS:
       parts: [{ text: msg.content }]
     }));
 
-    // 5. Call Gemini 2.5 Flash (The 2025 Standard)
+    // 5. Call Gemini 2.5 Flash
     console.log('Calling Gemini 2.5 Flash...');
     
-    // UPDATED URL: Using gemini-2.5-flash
     const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
     
     const response = await fetch(apiURL, {
