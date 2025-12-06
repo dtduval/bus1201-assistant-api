@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <title>BUS 1201 Course Assistant</title>
     <style>
         * {
@@ -15,10 +15,15 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #003049;
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 10px;
+            padding-left: max(10px, env(safe-area-inset-left));
+            padding-right: max(10px, env(safe-area-inset-right));
+            padding-top: max(10px, env(safe-area-inset-top));
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
         }
 
         .container {
@@ -28,10 +33,12 @@
             width: 100%;
             max-width: 900px;
             height: 90vh;
+            height: 90dvh;
             min-height: 600px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative;
         }
 
         .header {
@@ -76,11 +83,6 @@
             color: #64748b;
             font-size: 16px;
             margin-bottom: 10px;
-        }
-
-        .loading-subtext {
-            color: #94a3b8;
-            font-size: 14px;
         }
 
         .chat-container {
@@ -147,12 +149,14 @@
         }
 
         .input-area {
-            padding: 20px 25px;
+            padding: 25px 30px;
             background: white;
             border-top: 1px solid #e2e8f0;
             display: flex;
-            gap: 12px;
+            gap: 15px;
             align-items: flex-end;
+            position: relative;
+            z-index: 10;
         }
 
         .input-wrapper {
@@ -169,6 +173,8 @@
             outline: none;
             transition: all 0.3s ease;
             background: #f8fafc;
+            min-height: 44px;
+            touch-action: manipulation;
         }
 
         .input-area input:focus {
@@ -188,17 +194,13 @@
             font-weight: 600;
             transition: all 0.3s ease;
             min-width: 80px;
+            min-height: 44px;
+            touch-action: manipulation;
         }
 
         .send-btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-        }
-
-        .send-btn:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
         }
 
         .typing-indicator {
@@ -267,52 +269,31 @@
             cursor: pointer;
             margin-top: 20px;
             transition: background 0.3s;
-        }
-
-        .retry-btn:hover {
-            background: #b91c1c;
+            min-height: 44px;
         }
 
         .hidden {
             display: none;
         }
 
-        /* Responsive Design */
         @media (max-width: 768px) {
             .container {
                 width: 100%;
                 height: 100vh;
+                height: 100dvh;
                 border-radius: 0;
                 max-width: none;
             }
-
             .header {
-                padding: 15px 20px;
+                padding-top: max(15px, env(safe-area-inset-top));
             }
-
-            .header h1 {
-                font-size: 22px;
-            }
-
-            .messages {
-                padding: 15px;
-            }
-
-            .message-bubble {
-                max-width: 85%;
-                padding: 12px 16px;
-                font-size: 14px;
-            }
-
             .input-area {
-                padding: 15px;
+                padding-bottom: max(20px, env(safe-area-inset-bottom));
             }
         }
 
-        /* Text formatting */
         .message-bubble strong {
             font-weight: 600;
-            color: inherit;
         }
 
         .message-bubble em {
@@ -323,26 +304,19 @@
             color: #667eea;
             text-decoration: underline;
         }
-
-        .message.user .message-bubble a {
-            color: #bfdbfe;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Welcome to the BUS 1201 Course Assistant (Autumn 2025)</h1>
+            <h1>BUS 1201 Course Assistant</h1>
         </div>
 
-        <!-- Loading Screen -->
         <div class="loading-screen" id="loadingScreen">
             <div class="loading-spinner"></div>
-            <div class="loading-text">Connecting to Claude AI...</div>
-            <div class="loading-subtext">Initializing your intelligent course assistant</div>
+            <div class="loading-text">Connecting to Course Assistant...</div>
         </div>
 
-        <!-- Error Screen -->
         <div class="error-panel hidden" id="errorPanel">
             <div class="error-icon">⚠️</div>
             <h3>Connection Error</h3>
@@ -350,12 +324,11 @@
             <button class="retry-btn" onclick="initializeApp()">Retry Connection</button>
         </div>
 
-        <!-- Chat Interface -->
         <div class="chat-container hidden" id="chatContainer">
             <div class="messages" id="messages">
                 <div class="message assistant">
                     <div class="message-bubble">
-                        Hi! I'm your BUS 1201 course assistant. Ask me about deadlines, assignments, grading, office hours, or anything else from your course outline.
+                        Hello! I am your BUS 1201 course assistant. You can ask me about exams, grading, or anything else about the course. I use information directly from the course outline.
                     </div>
                 </div>
             </div>
@@ -365,7 +338,7 @@
                     <input 
                         type="text" 
                         id="userInput" 
-                        placeholder="Ask me anything about BUS 1201..." 
+                        placeholder="How can I help?" 
                         onkeypress="handleKeyPress(event)"
                         autocomplete="off"
                     >
@@ -378,46 +351,15 @@
     </div>
 
     <script>
-        // Configuration - Relative URL since we're on the same domain now
+        // Use relative path for Vercel
         const API_ENDPOINT = '/api/chat';
-        
-        // Course content
-        const courseContent = `BUS 1201 - Autumn 2025 - Course Outline
 
-Professor: David Timothy Duval
-Email: da.duval@uwinnipeg.ca
-Office Hours: Phone consultations via Nexus booking link
-
-EVALUATION:
-- Midterm Exam: 30% (October 11, 2025, 9:00-10:30 AM)
-- Final Exam: 70% (April 9-23, 2025, cumulative)
-
-KEY POLICIES:
-- NO assignments, homework, or projects
-- NO make-up exams offered
-- Must achieve C+ or better to continue in Business program
-- Exam questions come from lectures, not textbook
-
-TEXTBOOK:
-Understanding Canadian Business (12th edition) by Nickels et al
-Online trial: https://accounts.mheducation.com/connect/section/d-duvalbus1201
-
-KEY DATES:
-- October 11, 2025: Midterm exam
-- November 12, 2025: Final withdrawal date
-- April 9-23, 2025: Final exam period
-
-For complete details, refer to your official course outline.`;
-
-        // Application state
         let conversationHistory = [];
         let isInitialized = false;
 
-        // Initialize the application
         async function initializeApp() {
             try {
                 showLoading();
-                updateLoadingText('Testing connection to Claude AI...');
                 
                 // Test the API connection
                 await testAPIConnection();
@@ -426,8 +368,10 @@ For complete details, refer to your official course outline.`;
                 showChat();
                 isInitialized = true;
                 
-                // Focus on input
-                document.getElementById('userInput').focus();
+                // Focus on input (desktop only)
+                if (!window.matchMedia('(max-width: 768px)').matches) {
+                    document.getElementById('userInput').focus();
+                }
                 
             } catch (error) {
                 console.error('Initialization error:', error);
@@ -437,24 +381,27 @@ For complete details, refer to your official course outline.`;
 
         async function testAPIConnection() {
             try {
+                // Send a simple greeting to wake up the lambda function
                 const testMessages = [
                     {
                         role: "user",
-                        content: "Hello! Please respond with exactly: 'Connection successful'"
+                        content: "Hello"
                     }
                 ];
 
-                const response = await callClaudeAPI(testMessages);
+                // We just want to see if it replies at all. 
+                // We do NOT check for specific text because the AI might say anything.
+                const response = await callAPI(testMessages);
                 
-                if (!response.includes('Connection successful')) {
-                    throw new Error('API connection test failed');
+                if (!response || response.length === 0) {
+                    throw new Error('Empty response from API');
                 }
                 
-                console.log('✅ Claude AI connected successfully');
+                console.log('✅ AI connected successfully');
                 
             } catch (error) {
-                console.error('Claude API test failed:', error);
-                throw new Error('Failed to connect to Claude AI. Please check your internet connection and try again.');
+                console.error('API test failed:', error);
+                throw new Error('Failed to connect to AI. Please check your internet connection.');
             }
         }
 
@@ -464,83 +411,45 @@ For complete details, refer to your official course outline.`;
             
             if (!message || !isInitialized) return;
 
-            // Add user message to chat
             addMessage(message, 'user');
             conversationHistory.push({ role: "user", content: message });
-            input.value = '';
             
-            // Disable send button and show typing
-            const sendBtn = document.getElementById('sendBtn');
-            sendBtn.disabled = true;
-            sendBtn.textContent = '...';
+            input.value = '';
             
             const typingIndicator = addTypingIndicator();
 
             try {
-                // Generate Claude AI response
-                const response = await generateClaudeResponse(message);
+                const response = await generateResponse(message);
                 
-                // Remove typing indicator and add response
                 removeTypingIndicator(typingIndicator);
                 addMessage(response, 'assistant');
                 
-                // Add to conversation history
                 conversationHistory.push({ role: "assistant", content: response });
                 
-                // Keep conversation history manageable (last 20 messages)
                 if (conversationHistory.length > 20) {
                     conversationHistory = conversationHistory.slice(-20);
                 }
                 
             } catch (error) {
                 removeTypingIndicator(typingIndicator);
-                addMessage('I apologize, but I encountered an error processing your question. Please try again.', 'assistant');
+                addMessage('I apologize, but I encountered an error. Please try again.', 'assistant');
                 console.error('Error generating response:', error);
             }
-
-            // Re-enable send button
-            sendBtn.disabled = false;
-            sendBtn.textContent = 'Send';
-            input.focus();
         }
 
-        async function generateClaudeResponse(userMessage) {
-            const systemPrompt = `You are an intelligent and professional course assistant for BUS 1201 (Introduction to Business) at the University of Winnipeg, taught by Professor David Duval. You have access to the course outline and your role is to help students with any questions about the course.
-
-COURSE OUTLINE CONTENT:
-${courseContent}
-
-INSTRUCTIONS:
-- Be helpful, encouraging, and supportive like a caring teaching assistant
-- Provide accurate information based on the course outline
-- Remember our conversation context and build on previous exchanges
-- Be conversational and personable, but professional
-- DO NOT use emojis in responses - keep all responses clean and professional
-- Use **bold** for important information like dates and policies
-- Show empathy when students express concerns or stress about exams/grades
-- Offer study tips and remind students that exam questions come from lectures
-- Reference specific course policies when relevant
-- Keep responses clear, professional, and academic in tone
-
-You want to help students succeed in BUS 1201 and feel confident about the course.`;
-
-            // Prepare messages for Claude
+        async function generateResponse(userMessage) {
             const messages = [
-                {
-                    role: "user",
-                    content: systemPrompt
-                },
-                ...conversationHistory.slice(-10), // Last 10 messages for context
+                ...conversationHistory.slice(-10), 
                 {
                     role: "user",
                     content: userMessage
                 }
             ];
 
-            return await callClaudeAPI(messages);
+            return await callAPI(messages);
         }
 
-        async function callClaudeAPI(messages) {
+        async function callAPI(messages) {
             try {
                 const response = await fetch(API_ENDPOINT, {
                     method: 'POST',
@@ -554,20 +463,21 @@ You want to help students succeed in BUS 1201 and feel confident about the cours
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`API Error: ${response.status} - ${errorText}`);
+                    throw new Error(`API Error: ${response.status}`);
                 }
 
                 const data = await response.json();
                 
+                // Handle the adapted response format
                 if (!data.content || !data.content[0] || !data.content[0].text) {
-                    throw new Error('Invalid response format from Claude API');
+                    throw new Error('Invalid response format');
                 }
                 
                 return data.content[0].text;
                 
             } catch (error) {
-                console.error('Claude API call failed:', error);
-                throw new Error('Unable to connect to Claude AI: ' + error.message);
+                console.error('API call failed:', error);
+                throw new Error('Unable to connect to AI');
             }
         }
 
@@ -579,14 +489,12 @@ You want to help students succeed in BUS 1201 and feel confident about the cours
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
             
-            // Format text with markdown support
             let formattedText = text
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/`(.*?)`/g, '<code style="background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 3px;">$1</code>')
                 .replace(/\n/g, '<br>');
             
-            // Convert URLs to clickable links
+            // Linkify URLs
             formattedText = formattedText.replace(
                 /(https?:\/\/[^\s<]+)/g,
                 '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
@@ -596,8 +504,9 @@ You want to help students succeed in BUS 1201 and feel confident about the cours
             messageDiv.appendChild(bubbleDiv);
             messagesDiv.appendChild(messageDiv);
             
-            // Scroll to bottom
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            setTimeout(() => {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }, 50);
         }
 
         function addTypingIndicator() {
@@ -613,7 +522,7 @@ You want to help students succeed in BUS 1201 and feel confident about the cours
                     <span></span>
                     <span></span>
                 </div>
-                <span>Claude is thinking...</span>
+                <span>Assistant is thinking...</span>
             `;
             
             messageDiv.appendChild(typingDiv);
@@ -648,13 +557,6 @@ You want to help students succeed in BUS 1201 and feel confident about the cours
             document.getElementById('errorMessage').textContent = message;
         }
 
-        function updateLoadingText(text) {
-            const loadingText = document.querySelector('.loading-text');
-            if (loadingText) {
-                loadingText.textContent = text;
-            }
-        }
-
         function handleKeyPress(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
@@ -662,7 +564,6 @@ You want to help students succeed in BUS 1201 and feel confident about the cours
             }
         }
 
-        // Initialize the app when page loads
         document.addEventListener('DOMContentLoaded', initializeApp);
     </script>
 </body>
