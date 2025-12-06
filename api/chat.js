@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     console.log('Fetching Google Doc...');
     const docFetchStart = Date.now();
 
-    const docResponse = await fetch('https://docs.google.com/document/d/12pjYrJib1xP3cIihJRNhhzcX2qvSkofUl-5vYpfp7T4/edit?usp=sharing');
+    const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSEnCocwxX2uI4fpMU2rW7c2vlTWMEU8jy54d7KcGGxt7LevvwReEpPLd42hzdyTTyiBUHNB1rupdTL/pub');
 
     const docFetchTime = Date.now() - docFetchStart;
     console.log(`Google Doc fetch took ${docFetchTime}ms, status: ${docResponse.status}`);
