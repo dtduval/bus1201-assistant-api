@@ -25,7 +25,7 @@ module.exports = async (req, res) => {
 
     // 1. Fetch Google Doc
     console.log('Fetching Google Doc...');
-    const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSQKFtFwES-1IK62rTPjN9UpZADz0hJ8u_7UjRtvsdLPKyEDNazKEDPSWTp9FGyWFw3ZhAx0q6mRrOX/pub');
+    const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSEnCocwxX2uI4fpMU2rW7c2vlTWMEU8jy54d7KcGGxt7LevvwReEpPLd42hzdyTTyiBUHNB1rupdTL/pub');
 
     if (!docResponse.ok) {
       throw new Error(`Google Doc fetch failed: ${docResponse.status}`);
