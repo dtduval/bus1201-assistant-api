@@ -1,3 +1,14 @@
+// Import the Rate Limit tools
+const { Ratelimit } = require('@upstash/ratelimit');
+const { kv } = require('@vercel/kv');
+
+// Create a Rate Limiter
+// "10 requests per 60 seconds" (Adjust the number '10' if you want it stricter or looser)
+const ratelimit = new Ratelimit({
+  redis: kv,
+  limiter: Ratelimit.slidingWindow(10, '60 s'),
+});
+
 module.exports = async (req, res) => {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,6 +26,22 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // === 1. RATE LIMIT CHECK ===
+    // We identify users by their IP address (x-forwarded-for header)
+    const ip = req.headers['x-forwarded-for'] || '127.0.0.1';
+    
+    // Check the limit
+    const { success } = await ratelimit.limit(`ratelimit_${ip}`);
+
+    if (!success) {
+      console.warn(`Rate limit exceeded for IP: ${ip}`);
+      res.status(429).json({ 
+        error: 'Too many requests. You are sending messages too quickly. Please wait a moment.' 
+      });
+      return;
+    }
+    // ===========================
+
     const { messages } = req.body;
 
     if (!process.env.GEMINI_API_KEY) {
@@ -23,9 +50,9 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // 1. Fetch Google Doc
+    // 2. Fetch Google Doc
     console.log('Fetching Google Doc...');
-    const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSEnCocwxX2uI4fpMU2rW7c2vlTWMEU8jy54d7KcGGxt7LevvwReEpPLd42hzdyTTyiBUHNB1rupdTL/pub');
+    const docResponse = await fetch('https://docs.google.com/document/d/e/2PACX-1vSQKFtFwES-1IK62rTPjN9UpZADz0hJ8u_7UjRtvsdLPKyEDNazKEDPSWTp9FGyWFw3ZhAx0q6mRrOX/pub');
 
     if (!docResponse.ok) {
       throw new Error(`Google Doc fetch failed: ${docResponse.status}`);
@@ -33,13 +60,12 @@ module.exports = async (req, res) => {
 
     const rawHTML = await docResponse.text();
 
-    // 2. Clean the HTML (WITH MARKDOWN LINK CONVERSION)
+    // 3. Clean the HTML (WITH MARKDOWN LINK CONVERSION)
     const courseContent = rawHTML
       .replace(/<\/tr>/g, '\n')
       .replace(/<\/td>/g, ' | ')
-      // === NEW: Converts <a href="...">Text</a> to [Text](URL) ===
+      // Converts <a href="...">Text</a> to Markdown [Text](URL)
       .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
-      // ==========================================================
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<[^>]*>/g, ' ')
@@ -47,7 +73,7 @@ module.exports = async (req, res) => {
       .replace(/&nbsp;/g, ' ')
       .trim();
 
-    // 3. Construct System Prompt
+    // 4. Construct System Prompt
     const systemInstruction = `You are an intelligent and professional course assistant for BUS 1201 (Introduction to Business) at the University of Winnipeg, taught by Professor David Duval. 
 
 COURSE OUTLINE SOURCE DATA:
@@ -60,13 +86,13 @@ INSTRUCTIONS:
 - Be helpful, encouraging, and professional.
 - Do not use emojis.`;
 
-    // 4. Format Messages for Gemini API
+    // 5. Format Messages for Gemini API
     const geminiHistory = messages.map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
 
-    // 5. Call Gemini 2.5 Flash
+    // 6. Call Gemini 2.5 Flash
     console.log('Calling Gemini 2.5 Flash...');
     
     const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
@@ -95,7 +121,7 @@ INSTRUCTIONS:
 
     const data = await response.json();
 
-    // 6. Adapt Response for your Frontend
+    // 7. Adapt Response for your Frontend
     const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't find an answer.";
 
     res.status(200).json({
@@ -104,6 +130,10 @@ INSTRUCTIONS:
 
   } catch (error) {
     console.error('API Error:', error);
+    // If it's a rate limit error, pass the status code through
+    if (res.statusCode === 429) {
+        return; 
+    }
     res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 };
