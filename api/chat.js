@@ -17,8 +17,8 @@ module.exports = async (req, res) => {
   try {
     const { messages } = req.body;
 
-    if (!process.env.GEMINI_API_KEY) {
-      console.error('Error: GEMINI_API_KEY is missing');
+    if (!process.env.CLAUDE_API_KEY) {
+      console.error('Error: CLAUDE_API_KEY is missing');
       res.status(500).json({ error: 'Server misconfiguration: API key missing' });
       return;
     }
@@ -47,7 +47,7 @@ module.exports = async (req, res) => {
       .trim();
 
     // 3. Construct System Prompt
-    const systemInstruction = `You are an intelligent and professional course assistant for BUS 1201 (Introduction to Business) at the University of Winnipeg, taught by Professor David Duval. 
+    const systemInstruction = `You are an intelligent and professional course assistant for BUS 1201 (Introduction to Business) at the University of Winnipeg, taught by Professor David Duval.
 
 COURSE OUTLINE SOURCE DATA:
 ${courseContent}
@@ -59,43 +59,39 @@ INSTRUCTIONS:
 - Be helpful, encouraging, and professional.
 - Do not use emojis.`;
 
-    // 4. Format Messages for Gemini API
-    const geminiHistory = messages.map(msg => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
+    // 4. Format Messages for Claude API
+    const claudeMessages = messages.map(msg => ({
+      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      content: msg.content
     }));
 
-    // 5. Call Gemini 2.5 Flash
-    console.log('Calling Gemini 2.5 Flash...');
-    
-    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-    
-    const response = await fetch(apiURL, {
+    // 5. Call Claude Haiku
+    console.log('Calling Claude Haiku...');
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'x-api-key': process.env.CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
       },
       body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemInstruction }]
-        },
-        contents: geminiHistory,
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1000,
-        }
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 1000,
+        system: systemInstruction,
+        messages: claudeMessages
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
+      throw new Error(`Claude API Error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
 
     // 6. Adapt Response for your Frontend
-    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't find an answer.";
+    const aiText = data.content?.[0]?.text || "I'm sorry, I couldn't find an answer.";
 
     res.status(200).json({
       content: [{ text: aiText }]
